@@ -33,6 +33,10 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     MainApp mainapp;
     QString credentialsFile(DEFAULT_CREDENTIALS_FILE);
+    
+    //force setting
+    mainapp.setInfoScreen(true);
+    mainapp.setKeyboard(true);
 
     /* first, parse options : */
     while ((opt = getopt_long(argc, argv, "c:ikh", long_options, NULL)) != -1)
