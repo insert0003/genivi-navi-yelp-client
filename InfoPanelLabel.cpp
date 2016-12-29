@@ -12,7 +12,7 @@ void InfoPanelLabel::Init(int pos, int height, const QString &text, QFont *font)
         if (font)
             setFont(*font);
     }
-    setStyleSheet("QLabel { background-color : white; color : #333333; }");
+    setStyleSheet("QLabel { background-color : white; color : #FFFFFF; }");
     setGeometry(QRect(rect.x(), rect.y()+pos, rect.width(), height));
 
     /* if text is too big, align left so that we can at least read the beginning : */

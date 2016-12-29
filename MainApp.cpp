@@ -29,14 +29,14 @@
 #define LEFT_OFFSET         28
 #define FONT_SIZE_LINEDIT   20
 #define FONT_SIZE_LIST      18
-#define TEXT_INPUT_WIDTH    500
+#define TEXT_INPUT_WIDTH    800
 #define SEARCH_BTN_SIZE     105
 #define SPACER              15
 #define WIDGET_WIDTH        (SEARCH_BTN_SIZE + SPACER + TEXT_INPUT_WIDTH)
 #define DISPLAY_WIDTH   	TEXT_INPUT_WIDTH
 #define DISPLAY_HEIGHT  	480
 #define COMPLETE_W_WITH_KB	1080
-#define COMPLETE_H_WITH_KB	1408
+#define COMPLETE_H_WITH_KB	1487
 #define RESULT_ITEM_HEIGHT  80
 #define MARGINS             25
 #define AGL_REFRESH_DELAY   75 /* milliseconds */
@@ -58,15 +58,15 @@ MainApp::MainApp():QMainWindow(Q_NULLPTR, Qt::FramelessWindowHint),
     navicoreSession(0),currentIndex(0),fontId(-1),isInfoScreen(false),
     isInputDisplayed(false),isKeyboard(false),isAglNavi(false)
 {
-    this->setAttribute(Qt::WA_TranslucentBackground);
+    //this->setAttribute(Qt::WA_TranslucentBackground);
     this->setStyleSheet("border: none;");
 
-    searchBtn.setStyleSheet("border: none;");
+    searchBtn.setStyleSheet("border: none; color: #FFFFFF;");
     searchBtn.setMinimumSize(QSize(SEARCH_BTN_SIZE, SEARCH_BTN_SIZE));
     searchBtn.setIconSize(searchBtn.size());
     searchBtn.setGeometry(QRect(LEFT_OFFSET, 0, searchBtn.width(), searchBtn.height()));
 
-    lineEdit.setStyleSheet("border: none;");
+    lineEdit.setStyleSheet("border: none; color: #FFFFFF;");
     lineEdit.setMinimumSize(QSize(TEXT_INPUT_WIDTH, SEARCH_BTN_SIZE));
 
     lineEdit.setPlaceholderText(QString(DEFAULT_TEXT));
@@ -99,7 +99,8 @@ MainApp::MainApp():QMainWindow(Q_NULLPTR, Qt::FramelessWindowHint),
     if (getenv("AGL_NAVI"))
 		isAglNavi = true;
 
-    this->setGeometry(QRect(this->pos().x(), this->pos().y(), LEFT_OFFSET + searchBtn.width(), searchBtn.height()));
+    this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
+    this->setStyleSheet("background-image: url(:/images/AGL_POI_Background.png);");
     this->show();
 }
 
@@ -129,13 +130,11 @@ void MainApp::searchBtnClicked()
 void MainApp::DisplayLineEdit(bool display)
 {
     mutex.lock();
+
+    this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
+
     if (display)
     {
-        if (isKeyboard)
-            this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-        else
-            this->setGeometry(QRect(this->pos().x(), this->pos().y(), LEFT_OFFSET + WIDGET_WIDTH, searchBtn.height()));
-
         lineEdit.setVisible(true);
         lineEdit.setFocus();
     }
@@ -154,7 +153,6 @@ void MainApp::DisplayLineEdit(bool display)
         }
         lineEdit.setText(tr(""));
         lineEdit.setVisible(false);
-        this->setGeometry(QRect(this->pos().x(), this->pos().y(), LEFT_OFFSET+searchBtn.width(), searchBtn.height()));
     }
     isInputDisplayed = display;
     
@@ -185,7 +183,7 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
         if (!pResultList)
         {
             pResultList = new QTreeWidget(this);
-            pResultList->setStyleSheet("border: none;");
+            pResultList->setStyleSheet("border: none; color: #FFFFFF;");
             pResultList->setRootIsDecorated(false);
             pResultList->setEditTriggers(QTreeWidget::NoEditTriggers);
             pResultList->setSelectionBehavior(QTreeWidget::SelectRows);
@@ -204,12 +202,7 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
                                         DISPLAY_WIDTH, DISPLAY_HEIGHT));
         if (RefreshDisplay)
         {
-			if (isKeyboard)
-				this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-			else
-				this->setGeometry(QRect(this->pos().x(), this->pos().y(),
-										LEFT_OFFSET+WIDGET_WIDTH,
-										searchBtn.height()+SPACER+pResultList->height()));
+            this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
 		}
         pResultList->setVisible(true);
         pResultList->setFocus();
@@ -227,10 +220,7 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
         
         if (RefreshDisplay)
         {
-			if (isKeyboard)
-				this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-			else
-				this->setGeometry(QRect(this->pos().x(), this->pos().y(), LEFT_OFFSET+WIDGET_WIDTH, searchBtn.height()));
+            this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
 		}
     }
     
@@ -653,12 +643,7 @@ void MainApp::DisplayInformation(bool display, bool RefreshDisplay)
 
 		if (RefreshDisplay)
 		{
-			if (isKeyboard)
-				this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-			else
-				this->setGeometry(QRect(	this->pos().x(), this->pos().y(),
-											LEFT_OFFSET+WIDGET_WIDTH,
-											searchBtn.height()+SPACER+DISPLAY_HEIGHT));
+            this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
 		}
 
         connect(pInfoPanel->getGoButton(),      SIGNAL(clicked(bool)), this, SLOT(goClicked()));
@@ -676,7 +661,9 @@ void MainApp::DisplayInformation(bool display, bool RefreshDisplay)
         lineEdit.setFocus();
         
         if (RefreshDisplay)
-			this->setGeometry(QRect(this->pos().x(), this->pos().y(), LEFT_OFFSET+WIDGET_WIDTH, searchBtn.height()));
+        {
+            this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
+        }
     }
 
     mutex.unlock();
