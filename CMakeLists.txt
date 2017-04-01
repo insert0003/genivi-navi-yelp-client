@@ -37,6 +37,8 @@ qt5_use_modules(yelp-client Core Widgets Network)
 add_library( geniviwrapper libgeniviwrapper/GeniviWrapper.cpp )
 target_link_libraries( geniviwrapper ${DBUSCXX_LIBRARIES} ${JSON_LIBRARIES} )
 
+install (TARGETS yelp-client DESTINATION bin)
+
 ##########################################################################
 # AGL binding
 configure_file(config.xml.in config.xml)
