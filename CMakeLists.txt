@@ -50,7 +50,7 @@ add_custom_command(
 	COMMAND mkdir -p package/root
 	COMMAND cp config.xml package/root/
 	COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/HMI_AppLauncher_POI_Active-01.png package/root/icon.png
-	COMMAND cp yelp-client package/poi
+	COMMAND cp yelp-client package/root/poi
 	COMMAND wgtpkg-pack -f -o package/poi.wgt package/root
 )
 add_custom_target(widget ALL DEPENDS poi.wgt)
