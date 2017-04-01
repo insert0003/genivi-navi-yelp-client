@@ -47,10 +47,10 @@ add_custom_command(
 	OUTPUT poi.wgt
 	DEPENDS yelp-client
 	COMMAND rm -rf package
-	COMMAND mkdir -p package
-	COMMAND cp config.xml package/
-	COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/HMI_AppLauncher_POI_Active-01.png package/icon.png
+	COMMAND mkdir -p package/root
+	COMMAND cp config.xml package/root/
+	COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/HMI_AppLauncher_POI_Active-01.png package/root/icon.png
 	COMMAND cp yelp-client package/poi
-	COMMAND wgtpkg-pack -f -o package/poi.wgt package
+	COMMAND wgtpkg-pack -f -o package/poi.wgt package/root
 )
 add_custom_target(widget ALL DEPENDS poi.wgt)
