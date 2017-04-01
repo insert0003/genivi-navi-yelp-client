@@ -37,4 +37,18 @@ qt5_use_modules(yelp-client Core Widgets Network)
 add_library( geniviwrapper libgeniviwrapper/GeniviWrapper.cpp )
 target_link_libraries( geniviwrapper ${DBUSCXX_LIBRARIES} ${JSON_LIBRARIES} )
 
-install (TARGETS yelp-client DESTINATION bin)
+##########################################################################
+# AGL binding
+configure_file(config.xml.in config.xml)
+
+add_custom_command(
+	OUTPUT poi.wgt
+	DEPENDS yelp-client
+	COMMAND rm -rf package
+	COMMAND mkdir -p package
+	COMMAND cp config.xml package/
+	COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/HMI_AppLauncher_POI_Active-01.png package/icon.png
+	COMMAND cp yelp-client package/poi
+	COMMAND wgtpkg-pack -f -o package/poi.wgt package
+)
+add_custom_target(widget ALL DEPENDS poi.wgt)
