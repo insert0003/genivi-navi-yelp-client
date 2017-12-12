@@ -27,7 +27,7 @@ static struct option long_options[] = {
     {0,                         0,                  0,  '\0'}
 };
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char *env[])
 {
     int opt;
     QApplication a(argc, argv);
@@ -58,11 +58,11 @@ int main(int argc, char *argv[])
             default: break;
         }
     }
-    
-    /* then, check that Genivi API is available: */
-    if (mainapp.CheckGeniviApi() < 0)
+
+    /* check naviapi */
+    if (mainapp.CheckNaviApi(argc, argv) == false)
     {
-        cerr << "Error: Genivi API is  not available" << endl;
+        cerr << "Error: naviapi check failed" << endl;
         return -1;
     }
 

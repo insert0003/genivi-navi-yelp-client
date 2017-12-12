@@ -8,19 +8,20 @@
 #include <QMutex>
 #include <QTreeWidget>
 #include <vector>
-#include "libgeniviwrapper/GeniviWrapper.h"
 #include "Business.h"
 #include "InfoPanel.h"
 #include "Keyboard.h"
 
-class MainApp: public QMainWindow
+#include "libnavi/libnavicore.hpp"
+
+class MainApp: public QMainWindow, public naviapi::NavicoreListener
 {
     Q_OBJECT
 
     public:
         explicit MainApp();
         ~MainApp();
-        int CheckGeniviApi();
+        bool CheckNaviApi(int argc, char *argv[]);
         int AuthenticatePOI(const QString & CredentialsFile);
         int StartMonitoringUserInput();
         void setInfoScreen(bool val) { isInfoScreen = val; }
@@ -36,21 +37,26 @@ class MainApp: public QMainWindow
         void DisplayResultList(bool display, bool RefreshDisplay = true);
         void DisplayInformation(bool display, bool RefreshDisplay = true);
         int FillResultList(std::vector<Business> & list, int focusIndex = 0);
+        void SetWayPoints(uint32_t myRoute);
 
-        GeniviWrapper wrapper;
+	naviapi::Navicore naviapi;
         QNetworkAccessManager networkManager;
         QPushButton searchBtn;
         QLineEdit lineEdit;
         Keyboard keyboard;
         QMutex mutex; // to protect pointers from concurrent access
         QString token;
-        QString currentSearchText;
+        QString currentSearchingText;
+        QString currentSearchedText;
         QNetworkReply *pSearchReply;
         InfoPanel *pInfoPanel;
         QTreeWidget *pResultList;
         double currentLatitude;
         double currentLongitude;
+        double destinationLatitude;
+        double destinationLongitude;
         uint32_t navicoreSession;
+        uint32_t currentRouteHandle;
         int currentIndex;
         int fontId;
         bool isInfoScreen;
@@ -59,6 +65,12 @@ class MainApp: public QMainWindow
         bool isAglNavi;
         std::vector<Business> Businesses;
         QFont font;
+
+    public:
+        void getAllSessions_reply(const std::map< uint32_t, std::string >& allSessions);
+	void getPosition_reply(std::map< int32_t, naviapi::variant > position);
+	void getAllRoutes_reply(std::vector< uint32_t > allRoutes);
+	void createRoute_reply(uint32_t routeHandle);
 
     private slots:
         void searchBtnClicked();
@@ -70,6 +82,17 @@ class MainApp: public QMainWindow
         void UpdateAglSurfaces();
         void goClicked();
         void cancelClicked();
+
+        void allSessionsGot();
+        void positionGot();
+        void allRoutesGot();
+        void routeCreated();
+
+    signals:
+        void allSessionsGotSignal();
+        void positionGotSignal();
+        void allRoutesGotSignal();
+        void routeCreatedSignal();
 };
 
 #endif // __MAINAPP_H__

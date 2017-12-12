@@ -2,12 +2,13 @@
 #include <QNetworkRequest>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QNetworkProxy>
 #include <QTreeWidget>
 #include <iostream>
 #include <error.h>
 #include <json-c/json.h>
 #include <stdlib.h>
-
+#include <unistd.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
@@ -16,8 +17,6 @@
 #include "InfoPanel.h"
 #include "ClickableLabel.h"
 #include "Keyboard.h"
-#include "libgeniviwrapper/GeniviWrapper.h"
-#include "libgeniviwrapper/include/genivi-navicore-constants.h"
 #include "traces.h"
 
 #define DEFAULT_TEXT        "Select your destination with Yelp !"
@@ -33,10 +32,10 @@
 #define SEARCH_BTN_SIZE     105
 #define SPACER              15
 #define WIDGET_WIDTH        (SEARCH_BTN_SIZE + SPACER + TEXT_INPUT_WIDTH)
-#define DISPLAY_WIDTH   	TEXT_INPUT_WIDTH
-#define DISPLAY_HEIGHT  	480
-#define COMPLETE_W_WITH_KB	1080
-#define COMPLETE_H_WITH_KB	1487
+#define DISPLAY_WIDTH       TEXT_INPUT_WIDTH
+#define DISPLAY_HEIGHT      480
+#define COMPLETE_W_WITH_KB    1080
+#define COMPLETE_H_WITH_KB    1487
 #define RESULT_ITEM_HEIGHT  80
 #define MARGINS             25
 #define AGL_REFRESH_DELAY   75 /* milliseconds */
@@ -51,9 +50,9 @@
 using namespace std;
 
 MainApp::MainApp():QMainWindow(Q_NULLPTR, Qt::FramelessWindowHint),
-    wrapper(),networkManager(this),searchBtn(QIcon(tr(":/images/loupe-90.png")), tr(""), this),
+    networkManager(this),searchBtn(QIcon(tr(":/images/loupe-90.png")), tr(""), this),
     lineEdit(this),keyboard(QRect(0, 688, COMPLETE_W_WITH_KB, 720), this),
-    mutex(QMutex::Recursive),token(""),currentSearchText(""),
+    mutex(QMutex::Recursive),token(""),currentSearchingText(""),currentSearchedText(""),
     pSearchReply(NULL),pInfoPanel(NULL),pResultList(NULL),currentLatitude(0.0),currentLongitude(0.0),
     navicoreSession(0),currentIndex(0),fontId(-1),isInfoScreen(false),
     isInputDisplayed(false),isKeyboard(false),isAglNavi(false)
@@ -97,7 +96,12 @@ MainApp::MainApp():QMainWindow(Q_NULLPTR, Qt::FramelessWindowHint),
     /* Check if "AGL_NAVI" env variable is set. If yes, we must notify
      * AGL environment when surface needs to be resized */
     if (getenv("AGL_NAVI"))
-		isAglNavi = true;
+        isAglNavi = true;
+
+    connect(this, SIGNAL(allSessionsGotSignal()), this, SLOT(allSessionsGot()));
+    connect(this, SIGNAL(positionGotSignal()), this, SLOT(positionGot()));
+    connect(this, SIGNAL(allRoutesGotSignal()), this, SLOT(allRoutesGot()));
+    connect(this, SIGNAL(routeCreatedSignal()), this, SLOT(routeCreated()));
 
     this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
     this->setStyleSheet("background-image: url(:/images/AGL_POI_Background.png);");
@@ -203,7 +207,7 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
         if (RefreshDisplay)
         {
             this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-		}
+        }
         pResultList->setVisible(true);
         pResultList->setFocus();
     }
@@ -221,7 +225,7 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
         if (RefreshDisplay)
         {
             this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-		}
+        }
     }
     
     mutex.unlock();
@@ -247,42 +251,21 @@ void MainApp::textChanged(const QString & text)
     }
 
     /* if text is the same as previous search -> no need to search again */
-    if (text == currentSearchText)
+    if (text == currentSearchedText)
     {
         DisplayResultList(true);
         FillResultList(Businesses, currentIndex);
         mutex.unlock();
         return;
     }
+    this->currentSearchingText = text;
 
-    /* we need to know our current position : */
+    /* we need to know our current position */
     std::vector<int32_t> Params;
-    Params.push_back(NAVICORE_LONGITUDE);
-    Params.push_back(NAVICORE_LATITUDE);
-    std::map< int32_t, variant > Ret = wrapper.NavicoreGetPosition(Params);
-    std::map< int32_t, variant >::iterator it;
-    for (it = Ret.begin(); it != Ret.end(); it++)
-    {
-        if (it->first == NAVICORE_LATITUDE)
-            currentLatitude = it->second._double;
-        else if (it->first == NAVICORE_LONGITUDE)
-            currentLongitude = it->second._double;
-    }
+    Params.push_back(naviapi::NAVICORE_LONGITUDE);
+    Params.push_back(naviapi::NAVICORE_LATITUDE);
+    naviapi.getPosition(Params);
 
-    TRACE_INFO("Current position: %f, %f", currentLatitude, currentLongitude);
-
-    /* let's generate a search request : */
-    QString myUrlStr = URL_SEARCH + tr("?") + tr("term=") + text +
-        tr("&latitude=") + QString::number(currentLatitude) +
-        tr("&longitude=") + QString::number(currentLongitude);
-
-    TRACE_DEBUG("URL: %s", qPrintable(myUrlStr));
-
-    QUrl myUrl = QUrl(myUrlStr);
-    QNetworkRequest req(myUrl);
-    req.setRawHeader("Authorization", (tr("bearer ") + token).toLocal8Bit());
-    pSearchReply = networkManager.get(req);
-    
     mutex.unlock();
 }
 
@@ -547,7 +530,7 @@ bool MainApp::eventFilter(QObject *obj, QEvent *ev)
 
 void MainApp::resizeEvent(QResizeEvent* event)
 {
-	QMainWindow::resizeEvent(event);
+    QMainWindow::resizeEvent(event);
     if (isAglNavi)
     {
         QTimer::singleShot(AGL_REFRESH_DELAY, Qt::CoarseTimer, this, SLOT(UpdateAglSurfaces()));
@@ -573,38 +556,10 @@ void MainApp::SetDestination(int index)
     TRACE_DEBUG("index is: %d", index);
 
     /* retrieve the coordinates of this item : */
-    double latitude = Businesses[index].Latitude;
-    double longitude = Businesses[index].Longitude;
+    this->destinationLatitude = Businesses[index].Latitude;
+    this->destinationLongitude = Businesses[index].Longitude;
 
-    /* check if a route already exists, if not create it : */
-    uint32_t myRoute;
-    std::vector< uint32_t > allRoutes = wrapper.NavicoreGetAllRoutes();
-    if (allRoutes.size() == 0)
-    {
-        myRoute = wrapper.NavicoreCreateRoute(navicoreSession);
-        TRACE_INFO("Created route %" PRIu32, myRoute);
-    }
-    else
-    {
-        myRoute = allRoutes[0];
-        wrapper.NavicorePauseSimulation(navicoreSession);
-        wrapper.NavicoreSetSimulationMode(navicoreSession, false);
-        wrapper.NavicoreCancelRouteCalculation(navicoreSession, myRoute);
-        TRACE_INFO("Re-use route %" PRIu32, myRoute);
-    }
-
-    /* set the destination : */
-    Waypoint destWp(latitude, longitude);
-    std::vector<Waypoint> myWayPoints;
-    myWayPoints.push_back(destWp);
-    wrapper.NavicoreSetWaypoints(navicoreSession, myRoute, true, myWayPoints);
-
-    wrapper.NavicoreCalculateRoute(navicoreSession, myRoute);
-
-    /* reset search: */
-    currentSearchText = tr("");
-    currentIndex = 0;
-    Businesses.clear();
+    naviapi.getAllRoutes();
 
     mutex.unlock();
 }
@@ -641,10 +596,10 @@ void MainApp::DisplayInformation(bool display, bool RefreshDisplay)
                     DISPLAY_WIDTH, DISPLAY_HEIGHT);
         pInfoPanel = new InfoPanel(this, Businesses[currentIndex], rect);
 
-		if (RefreshDisplay)
-		{
+        if (RefreshDisplay)
+        {
             this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
-		}
+        }
 
         connect(pInfoPanel->getGoButton(),      SIGNAL(clicked(bool)), this, SLOT(goClicked()));
         connect(pInfoPanel->getCancelButton(),  SIGNAL(clicked(bool)), this, SLOT(cancelClicked()));
@@ -677,7 +632,7 @@ void MainApp::networkReplySearch(QNetworkReply* reply)
     mutex.lock();
 
     /* memorize the text which gave this result: */
-    currentSearchText = lineEdit.text();
+    currentSearchedText = lineEdit.text();
 
     // we only handle this callback if it matches the last search request:
     if (reply != pSearchReply)
@@ -728,8 +683,8 @@ int MainApp::FillResultList(vector<Business> & list, int focusIndex)
         QTreeWidgetItem * item = new QTreeWidgetItem(pResultList);
 
         ClickableLabel *label = new ClickableLabel("<b>"+(*it).Name+
-			"</b><br>"+(*it).Address+", "+(*it).City+", "+(*it).State+
-			" "+(*it).ZipCode+", "+(*it).Country, pResultList);
+            "</b><br>"+(*it).Address+", "+(*it).City+", "+(*it).State+
+            " "+(*it).ZipCode+", "+(*it).Country, pResultList);
         label->setTextFormat(Qt::RichText);
         font.setPointSize(FONT_SIZE_LIST);
         label->setFont(font);
@@ -785,20 +740,16 @@ bool MainApp::IsCoordinatesConsistent(Business & business)
 }
 /* end of workaround */
 
-int MainApp::CheckGeniviApi()
+bool MainApp::CheckNaviApi(int argc, char *argv[])
 {
-    map<uint32_t, std::string> NcSessions = wrapper.NavicoreGetAllSessions();
-    if (NcSessions.empty())
+    bool ret = naviapi.connect(argc, argv, this);
+
+    if (ret == true)
     {
-        TRACE_ERROR("Error: could not find an instance of Genivi Navicore");
-        return -1;
+        naviapi.getAllSessions();
     }
 
-    navicoreSession = NcSessions.begin()->first;
-    TRACE_INFO("Using Genivi Navicore session \"%s\" (%" PRIu32 ")",
-        NcSessions.begin()->second.c_str(), NcSessions.begin()->first);
-
-    return 0;
+    return ret;
 }
 
 int MainApp::AuthenticatePOI(const QString & CredentialsFile)
@@ -806,6 +757,11 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     char buf[512];
     QString AppId;
     QString AppSecret;
+    QString ProxyHostName;
+    QString PortStr;
+    QString User;
+    QString Password;
+    int portnum;
     
     /* First, read AppId and AppSecret from credentials file: */
     FILE* filep = fopen(qPrintable(CredentialsFile), "r");
@@ -837,6 +793,65 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     AppSecret = QString(buf);
     AppSecret.replace(0, 10, tr(""));
 
+    QNetworkProxy proxy;
+
+    //ProxyHostName
+    if (!fgets(buf, 512, filep))
+    {
+        TRACE_INFO("Failed to read ProxyHostName from credentials file \"%s\"", qPrintable(CredentialsFile));
+    }
+    else
+    {
+        if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = '\0';
+        ProxyHostName = QString(buf);
+        ProxyHostName.replace(0, 14, tr(""));
+
+        //Port
+        if (!fgets(buf, 512, filep))
+        {
+            TRACE_ERROR("Failed to read Port from credentials file \"%s\"", qPrintable(CredentialsFile));
+            fclose(filep);
+            return -1;
+        }
+        if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = '\0';
+        PortStr = QString(buf);
+        PortStr.replace(0, 5, tr(""));
+        portnum = PortStr.toInt();
+
+        //User
+        if (!fgets(buf, 512, filep))
+        {
+            TRACE_ERROR("Failed to read User from credentials file \"%s\"", qPrintable(CredentialsFile));
+            fclose(filep);
+            return -1;
+        }
+        if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = '\0';
+        User = QString(buf);
+        User.replace(0, 5, tr(""));
+
+        //Password
+        if (!fgets(buf, 512, filep))
+        {
+            TRACE_ERROR("Failed to read Password from credentials file \"%s\"", qPrintable(CredentialsFile));
+            fclose(filep);
+            return -1;
+        }
+        if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = '\0';
+        Password = QString(buf);
+        Password.replace(0, 9, tr(""));
+
+        proxy.setType(QNetworkProxy::HttpProxy);
+        proxy.setHostName(qPrintable(ProxyHostName));
+        proxy.setPort(portnum);
+        proxy.setUser(qPrintable(User));
+        proxy.setPassword(qPrintable(Password));
+        QNetworkProxy::setApplicationProxy(proxy);
+    }
+
     fclose(filep);
 
     TRACE_INFO("Found credentials");
@@ -844,6 +859,7 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     /* Then, send a HTTP request to get the token and wait for answer (synchronously): */
     QEventLoop eventLoop;
     QObject::connect(&networkManager, SIGNAL(finished(QNetworkReply*)), &eventLoop, SLOT(quit()));
+
     QNetworkRequest req(QUrl(URL_AUTH));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
     QUrl params;
@@ -920,6 +936,23 @@ int MainApp::StartMonitoringUserInput()
     return 1;
 }
 
+void MainApp::SetWayPoints(uint32_t myRoute)
+{
+    /* set the destination : */
+    naviapi::Waypoint destWp(this->destinationLatitude, this->destinationLongitude);
+    std::vector<naviapi::Waypoint> myWayPoints;
+    myWayPoints.push_back(destWp);
+    naviapi.setWaypoints(navicoreSession, myRoute, true, myWayPoints);
+
+    naviapi.calculateRoute(navicoreSession, myRoute);
+
+    /* reset search: */
+    currentSearchingText = tr("");
+    currentSearchedText = tr("");
+    currentIndex = 0;
+    Businesses.clear();
+}
+
 void MainApp::goClicked()
 {
     TRACE_DEBUG("Go clicked !");
@@ -933,5 +966,141 @@ void MainApp::cancelClicked()
     DisplayInformation(false, false);
     DisplayResultList(true, false);
     FillResultList(Businesses, currentIndex);
+}
+
+void MainApp::getAllSessions_reply(const std::map< uint32_t, std::string >& allSessions)
+{
+    mutex.lock();
+
+    if (allSessions.empty())
+    {
+        TRACE_ERROR("Error: could not find an instance of Navicore");
+        mutex.unlock();
+        return;
+    }
+
+    this->navicoreSession = allSessions.begin()->first;
+
+    TRACE_INFO("Current session: %d", this->navicoreSession);
+
+    mutex.unlock();
+
+    emit allSessionsGotSignal();
+}
+
+
+void MainApp::getPosition_reply(std::map< int32_t, naviapi::variant > position)
+{
+    mutex.lock();
+
+    std::map< int32_t, naviapi::variant >::iterator it;
+    for (it = position.begin(); it != position.end(); it++)
+    {
+        if (it->first == naviapi::NAVICORE_LATITUDE)
+        {
+            currentLatitude = it->second._double;
+        }
+        else if (it->first == naviapi::NAVICORE_LONGITUDE)
+        {
+            currentLongitude = it->second._double;
+        }
+    }
+
+    TRACE_INFO("Current position: %f, %f", currentLatitude, currentLongitude);
+
+    mutex.unlock();
+
+    emit positionGotSignal();
+}
+
+void MainApp::getAllRoutes_reply(std::vector< uint32_t > allRoutes)
+{
+    mutex.lock();
+
+    uint32_t routeHandle = 0;
+
+    if (allRoutes.size() != 0)
+    {
+        routeHandle = allRoutes[0];
+    }
+
+    this->currentRouteHandle = routeHandle;
+
+    mutex.unlock();
+
+    emit allRoutesGotSignal();
+}
+
+void MainApp::createRoute_reply(uint32_t routeHandle)
+{
+    mutex.lock();
+
+    this->currentRouteHandle = routeHandle;
+
+    mutex.unlock();
+
+    emit routeCreatedSignal();
+}
+
+void MainApp::allSessionsGot()
+{
+    mutex.lock();
+
+    // nothing to do
+
+    mutex.unlock();
+}
+
+void MainApp::positionGot()
+{
+    mutex.lock();
+
+    /* let's generate a search request : */
+    QString myUrlStr = URL_SEARCH + tr("?") + tr("term=") + currentSearchingText +
+        tr("&latitude=") + QString::number(currentLatitude) +
+        tr("&longitude=") + QString::number(currentLongitude);
+
+    TRACE_DEBUG("URL: %s", qPrintable(myUrlStr));
+
+    QUrl myUrl = QUrl(myUrlStr);
+    QNetworkRequest req(myUrl);
+    req.setRawHeader("Authorization", (tr("bearer ") + token).toLocal8Bit());
+
+    /* Then, send a HTTP request to get the token and wait for answer (synchronously): */
+
+    pSearchReply = networkManager.get(req);
+
+    mutex.unlock();
+}
+
+void MainApp::allRoutesGot()
+{
+    mutex.lock();
+
+    /* check if a route already exists, if not create it : */
+    if (this->currentRouteHandle == 0)
+    {
+        naviapi.createRoute(navicoreSession);
+    }
+    else
+    {
+        naviapi.pauseSimulation(navicoreSession);
+        naviapi.setSimulationMode(navicoreSession, false);
+        naviapi.cancelRouteCalculation(navicoreSession, this->currentRouteHandle);
+        sleep(1);
+
+        SetWayPoints(this->currentRouteHandle);
+    }
+
+    mutex.unlock();
+}
+
+void MainApp::routeCreated()
+{
+    mutex.lock();
+
+    SetWayPoints(this->currentRouteHandle);
+
+    mutex.unlock();
 }
 

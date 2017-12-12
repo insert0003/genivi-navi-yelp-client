@@ -25,17 +25,23 @@ pkg_check_modules(JSON REQUIRED json-c)
 pkg_check_modules(QT5_WIDGETS REQUIRED Qt5Widgets)
 pkg_check_modules(QT5_NETWORK REQUIRED Qt5Network)
 
-include_directories( ${DBUSCXX_INCLUDE_DIRS} ${QT5_CORE_INCLUDE_DIRS} ${QT5_WIDGETS_INCLUDE_DIRS} ${QT5_NETWORK_INCLUDE_DIRS} ${JSON_INCLUDE_DIRS} )
+include_directories( ${PROJECT_SOURCE_DIR}/ ${PROJECT_SOURCE_DIR}/libbinderclient/include ${DBUSCXX_INCLUDE_DIRS} ${QT5_CORE_INCLUDE_DIRS} ${QT5_WIDGETS_INCLUDE_DIRS} ${QT5_NETWORK_INCLUDE_DIRS} ${JSON_INCLUDE_DIRS} )
 
 qt5_wrap_cpp(yelp_client_SRC MainApp.h InfoPanelLabel.h ClickableLabel.h Keyboard.h)
 
 QT5_ADD_RESOURCES(yelp_client_QRC yelp-client.qrc)
 add_executable( yelp-client main.cpp MainApp.cpp InfoPanel.cpp InfoPanelLabel.cpp Keyboard.cpp yelp-client.qrc ${yelp_client_SRC} ${yelp_client_QRC})
-target_link_libraries( yelp-client geniviwrapper )
+#target_link_libraries( yelp-client binderclient )
+target_link_libraries( yelp-client -lnavi -lpthread -lsystemd -lafbwsc -luuid ${DBUSCXX_LIBRARIES} ${JSON_LIBRARIES} )
 qt5_use_modules(yelp-client Core Widgets Network)
 
-add_library( geniviwrapper libgeniviwrapper/GeniviWrapper.cpp )
-target_link_libraries( geniviwrapper ${DBUSCXX_LIBRARIES} ${JSON_LIBRARIES} )
+#add_library( binderclient 
+# libbinderclient/BinderClient.cpp 
+# libbinderclient/RequestManage.cpp
+# libbinderclient/JsonRequestGenerator.cpp
+# libbinderclient/JsonResponseAnalyzer.cpp
+#)
+#target_link_libraries( binderclient -lnavi -lpthread -lsystemd -lafbwsc -luuid ${DBUSCXX_LIBRARIES} ${JSON_LIBRARIES} )
 
 install (TARGETS yelp-client DESTINATION bin)
 
