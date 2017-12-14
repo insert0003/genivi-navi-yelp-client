@@ -12,7 +12,7 @@
 #include "InfoPanel.h"
 #include "Keyboard.h"
 
-#include "libnavi/libnavicore.hpp"
+#include <libnavicore.hpp>
 
 class MainApp: public QMainWindow, public naviapi::NavicoreListener
 {
