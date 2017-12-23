@@ -9,11 +9,11 @@
 
 ##### https://www.yelp.co.jp/developers?country=US
 ##### Please do developer registration and obtain App ID and App Secret key.
-##### And please write it in /home/root/.credentials.txt
+##### And please write it in /etc/poikey
 
-##### The contents are as follows:
-###### AppId=your app id
-###### AppSecret=your sercret key
+##### The contents are as follows (2 lines):
+###### your app id
+###### your sercret key
 
 ### Restrictions：
 #### POI App uses Navigation API. Push Navigation button before POI app.
