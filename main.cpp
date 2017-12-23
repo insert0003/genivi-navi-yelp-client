@@ -3,71 +3,82 @@
 #include "MainApp.h"
 #include <getopt.h>
 
-#define DEFAULT_CREDENTIALS_FILE "/home/root/.credentials.txt"
+#include <libhomescreen.hpp>
+#include <qlibwindowmanager.h>
+
+
+#define DEFAULT_CREDENTIALS_FILE "/etc/poikey"
 
 using namespace std;
 
-static void usage(void)
+QLibWindowmanager* qwm;
+LibHomeScreen* hs;
+QString myname;
+MainApp *mainapp;
+
+void SyncDrawHandler(json_object *object)
 {
-    cout << "Usage:" << endl;
-    cout << "  -c, --credentials  <path-to-credentials-file>   set the POI provider credentials file" << endl;
-    cout << "                     Credentials file must be formated this way:" << endl;
-    cout << "                        AppId=dummy" << endl;
-    cout << "                        AppSecret=dummy-secret" << endl;
-    cout << "  -i, --information-screen                        display info screen about selection" << endl;
-    cout << "  -k, --keyboard                                  display a virtual keyboard" << endl;
-    cout << "  -h, --help                                      this help message" << endl;
+	qwm->endDraw(myname);
 }
 
-static struct option long_options[] = {
-    {"credentials",             required_argument,  0,  'c' },
-    {"information-screen",      no_argument,        0,  'i' },
-    {"keyboard",                no_argument,        0,  'k' },
-    {"help",                    no_argument,        0,  'h' },
-    {0,                         0,                  0,  '\0'}
-};
+void TapShortcutHandler(json_object *object)
+{
+	json_object *appnameJ = nullptr;
+	if(json_object_object_get_ex(object, "application_name", &appnameJ))
+	{
+		const char *appname = json_object_get_string(appnameJ);
+
+		if(myname == QString(appname))
+		{
+			qwm->activateSurface(myname);
+		}
+	}
+}
 
 int main(int argc, char *argv[], char *env[])
 {
     int opt;
     QApplication a(argc, argv);
-    MainApp mainapp;
     QString credentialsFile(DEFAULT_CREDENTIALS_FILE);
-    
-    //force setting
-    mainapp.setInfoScreen(true);
-    mainapp.setKeyboard(true);
+    qwm = new QLibWindowmanager();
+    hs = new LibHomeScreen();
+	myname = QString("POI");
+	
+	QString pt = QString(argv[1]);
+	int port = pt.toInt();
+	QString secret = QString(argv[2]);
+	std::string token = secret.toStdString();
 
-    /* first, parse options : */
-    while ((opt = getopt_long(argc, argv, "c:ikh", long_options, NULL)) != -1)
-    {
-        switch (opt)
-        {
-            case 'c':
-                credentialsFile = QString(optarg);
-                break;
-            case 'i':
-                mainapp.setInfoScreen(true);
-                break;
-            case 'k':
-                mainapp.setKeyboard(true);
-                break;
-            case 'h':
-                usage();
-                return 0;
-            default: break;
-        }
+    if (qwm->init(port, secret) != 0) {
+        exit(EXIT_FAILURE);
     }
 
+    if (qwm->requestSurface(myname) != 0) {
+        cerr << "Error: wm check failed" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+	qwm->set_event_handler(QLibWindowmanager::Event_SyncDraw, SyncDrawHandler);
+
+    mainapp = new MainApp();
+
+	hs->init(port, token.c_str());
+	
+	hs->set_event_handler(LibHomeScreen::Event_TapShortcut, TapShortcutHandler);
+
+    //force setting
+    mainapp->setInfoScreen(true);
+    mainapp->setKeyboard(true);
+
     /* check naviapi */
-    if (mainapp.CheckNaviApi(argc, argv) == false)
+    if (mainapp->CheckNaviApi(argc, argv) == false)
     {
         cerr << "Error: naviapi check failed" << endl;
         return -1;
     }
 
     /* then, authenticate connexion to POI service: */
-    if (mainapp.AuthenticatePOI(credentialsFile) < 0)
+    if (mainapp->AuthenticatePOI(credentialsFile) < 0)
     {
         cerr << "Error: POI server authentication failed" << endl;
         return -1;
@@ -76,7 +87,7 @@ int main(int argc, char *argv[], char *env[])
     cerr << "authentication succes !" << endl;
 
     /* now, let's start monitor user inut (register callbacks): */
-    if (mainapp.StartMonitoringUserInput() < 0)
+    if (mainapp->StartMonitoringUserInput() < 0)
         return -1;
 
     /* main loop: */
