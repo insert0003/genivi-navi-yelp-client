@@ -762,36 +762,34 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     QString User;
     QString Password;
     int portnum;
-    
+
     /* First, read AppId and AppSecret from credentials file: */
     FILE* filep = fopen(qPrintable(CredentialsFile), "r");
     if (!filep)
     {
-        TRACE_ERROR("Failed to open credentials file \"%s\": %m", qPrintable(CredentialsFile));
+        fprintf(stderr,"Failed to open credentials file \"%s\": %m", qPrintable(CredentialsFile));
         return -1;
     }
 
     if (!fgets(buf, 512, filep))
     {
-        TRACE_ERROR("Failed to read AppId from credentials file \"%s\"", qPrintable(CredentialsFile));
+        fprintf(stderr,"Failed to read AppId from credentials file \"%s\"", qPrintable(CredentialsFile));
         fclose(filep);
         return -1;
     }
     if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
         buf[strlen(buf)-1] = '\0';
     AppId = QString(buf);
-    AppId.replace(0, 6, tr(""));
     
     if (!fgets(buf, 512, filep))
     {
-        TRACE_ERROR("Failed to read AppSecret from credentials file \"%s\"", qPrintable(CredentialsFile));
+        fprintf(stderr,"Failed to read AppSecret from credentials file \"%s\"", qPrintable(CredentialsFile));
         fclose(filep);
         return -1;
     }
     if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
         buf[strlen(buf)-1] = '\0';
     AppSecret = QString(buf);
-    AppSecret.replace(0, 10, tr(""));
 
     QNetworkProxy proxy;
 
