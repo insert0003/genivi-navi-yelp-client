@@ -90,6 +90,8 @@ int main(int argc, char *argv[], char *env[])
     if (mainapp->StartMonitoringUserInput() < 0)
         return -1;
 
+	qwm->activateSurface(myname);
+
     /* main loop: */
     return a.exec();
 }
