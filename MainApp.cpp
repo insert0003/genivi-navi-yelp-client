@@ -634,28 +634,37 @@ void MainApp::networkReplySearch(QNetworkReply* reply)
     /* memorize the text which gave this result: */
     currentSearchedText = lineEdit.text();
 
-    // we only handle this callback if it matches the last search request:
-    if (reply != pSearchReply)
-    {
-        TRACE_INFO("this reply is already too late (or about a different network request)");
-        mutex.unlock();
-        return;
+	if (reply->error() == QNetworkReply::NoError)
+	{
+	    // we only handle this callback if it matches the last search request:
+	    if (reply != pSearchReply)
+	    {
+	        TRACE_INFO("this reply is already too late (or about a different network request)");
+	        mutex.unlock();
+	        return;
+	    }
+	    
+    	buflen = reply->read(buf, BIG_BUFFER_SIZE-1);
+	    buf[buflen] = '\0';
+	
+	    if (buflen == 0)
+	    {
+	        mutex.unlock();
+	        return;
+	    }
+	
+	
+	
+	    currentIndex = 0;
+	    Businesses.clear();
+	    ParseJsonBusinessList(buf, Businesses);
+	    DisplayResultList(true);
+	    FillResultList(Businesses);
     }
-    
-    buflen = reply->read(buf, BIG_BUFFER_SIZE-1);
-    buf[buflen] = '\0';
-
-    if (buflen == 0)
+    else
     {
-        mutex.unlock();
-        return;
+    	fprintf(stderr,"POI: reply error network please check to poikey and system time (adjusted?)\n");
     }
-
-    currentIndex = 0;
-    Businesses.clear();
-    ParseJsonBusinessList(buf, Businesses);
-    DisplayResultList(true);
-    FillResultList(Businesses);
     
     mutex.unlock();
 }
@@ -855,73 +864,9 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     TRACE_INFO("Found credentials");
 
     /* Then, send a HTTP request to get the token and wait for answer (synchronously): */
-    QEventLoop eventLoop;
-    QObject::connect(&networkManager, SIGNAL(finished(QNetworkReply*)), &eventLoop, SLOT(quit()));
 
-    QNetworkRequest req(QUrl(URL_AUTH));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
-    QUrl params;
-    QUrlQuery query;
-    query.addQueryItem("grant_type", "client_credentials");
-    query.addQueryItem("client_id", qPrintable(AppId));
-    query.addQueryItem("client_secret", qPrintable(AppSecret));
-    params.setQuery(query);
-    QNetworkReply* reply = networkManager.post(req, params.toEncoded());
-
-    eventLoop.exec(); // wait for answer
-
-    if (reply->error() == QNetworkReply::NoError)
-    {
-        TRACE_DEBUG("HTTP request success");
-
-        char buf[1024];
-        int buflen;
-        json_object *jobj;
-        buflen = reply->read(buf, 1023);
-        buf[buflen] = '\0';
-
-        if (buflen == 0)
-        {
-            delete reply;
-            return -1;
-        }
-        
-        TRACE_DEBUG("reply is: %s", buf);
-
-        jobj = json_tokener_parse(buf);
-        if (!jobj)
-        {
-            TRACE_ERROR("json_tokener_parse failed");
-            delete reply;
-            return -1;
-        }
-
-        json_object_object_foreach(jobj, key, val)
-        {
-            (void)key;
-            if (json_object_get_type(val) == json_type_string)
-            {
-                json_object *value;
-                if(json_object_object_get_ex(jobj, "access_token", &value))
-                {
-                    TRACE_INFO("token was found");
-                    token = QString(json_object_get_string(value));
-                    break;
-                }
-            }
-        }
-
-        json_object_put(jobj);
-    }
-    else
-    {
-        TRACE_ERROR("HTTP request failure: %s", qPrintable(reply->errorString()));
-        delete reply;
-        return -1;
-    }
-
-    delete reply;
-    return 0;
+	token = AppSecret;
+	return 0;
 }
 
 int MainApp::StartMonitoringUserInput()
@@ -1062,7 +1007,7 @@ void MainApp::positionGot()
 
     QUrl myUrl = QUrl(myUrlStr);
     QNetworkRequest req(myUrl);
-    req.setRawHeader("Authorization", (tr("bearer ") + token).toLocal8Bit());
+    req.setRawHeader(QByteArray("Authorization"), (tr("bearer ") + token).toLocal8Bit());
 
     /* Then, send a HTTP request to get the token and wait for answer (synchronously): */
 
