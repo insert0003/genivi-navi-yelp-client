@@ -3,7 +3,7 @@
 #include "MainApp.h"
 #include <getopt.h>
 
-#define DEFAULT_CREDENTIALS_FILE "/home/root/.credentials.txt"
+#define DEFAULT_CREDENTIALS_FILE "/etc/poikey"
 
 using namespace std;
 
