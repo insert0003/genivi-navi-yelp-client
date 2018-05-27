@@ -841,7 +841,6 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
         buf[strlen(buf)-1] = '\0';
     AppSecret = QString(buf);
-    AppSecret.replace(0, 10, tr(""));
 
     fclose(filep);
 
