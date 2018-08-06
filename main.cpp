@@ -23,16 +23,7 @@ void SyncDrawHandler(json_object *object)
 
 void TapShortcutHandler(json_object *object)
 {
-	json_object *appnameJ = nullptr;
-	if(json_object_object_get_ex(object, "application_name", &appnameJ))
-	{
-		const char *appname = json_object_get_string(appnameJ);
-
-		if(myname == QString(appname))
-		{
-			qwm->activateSurface(myname);
-		}
-	}
+	qwm->activateSurface(myname);
 }
 
 int main(int argc, char *argv[], char *env[])
