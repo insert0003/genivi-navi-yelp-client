@@ -35,7 +35,7 @@
 #define DISPLAY_WIDTH       TEXT_INPUT_WIDTH
 #define DISPLAY_HEIGHT      480
 #define COMPLETE_W_WITH_KB    1080
-#define COMPLETE_H_WITH_KB    1487
+#define COMPLETE_H_WITH_KB    1488
 #define RESULT_ITEM_HEIGHT  80
 #define MARGINS             25
 #define AGL_REFRESH_DELAY   75 /* milliseconds */
