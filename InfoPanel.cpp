@@ -33,7 +33,7 @@ InfoPanel::InfoPanel(QWidget *parent, Business & business, QRect rect):
             cancelButton("Cancel", parent),
             goButton("Go !", parent),
             networkManager(parent)
-{    
+{
     int y = 0;
     QPixmap pixmap;
     bool isImageDownloaded = false;

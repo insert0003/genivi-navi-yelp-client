@@ -43,7 +43,7 @@ int main(int argc, char *argv[], char *env[])
     qwm = new QLibWindowmanager();
     hs = new LibHomeScreen();
 	myname = QString("POI");
-	
+
 	QString pt = QString(argv[1]);
 	int port = pt.toInt();
 	QString secret = QString(argv[2]);
@@ -63,7 +63,7 @@ int main(int argc, char *argv[], char *env[])
     mainapp = new MainApp();
 
 	hs->init(port, token.c_str());
-	
+
 	hs->set_event_handler(LibHomeScreen::Event_TapShortcut, TapShortcutHandler);
 
     //force setting
