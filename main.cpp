@@ -13,26 +13,17 @@ using namespace std;
 
 QLibWindowmanager* qwm;
 LibHomeScreen* hs;
-QString myname;
+QString graphic_role;
 MainApp *mainapp;
 
 void SyncDrawHandler(json_object *object)
 {
-	qwm->endDraw(myname);
+	qwm->endDraw(graphic_role);
 }
 
 void TapShortcutHandler(json_object *object)
 {
-	json_object *appnameJ = nullptr;
-	if(json_object_object_get_ex(object, "application_name", &appnameJ))
-	{
-		const char *appname = json_object_get_string(appnameJ);
-
-		if(myname == QString(appname))
-		{
-			qwm->activateSurface(myname);
-		}
-	}
+    qwm->activateWindow(graphic_role);
 }
 
 int main(int argc, char *argv[], char *env[])
@@ -42,7 +33,7 @@ int main(int argc, char *argv[], char *env[])
     QString credentialsFile(DEFAULT_CREDENTIALS_FILE);
     qwm = new QLibWindowmanager();
     hs = new LibHomeScreen();
-	myname = QString("POI");
+	graphic_role = QString("poi");
 
 	QString pt = QString(argv[1]);
 	int port = pt.toInt();
@@ -53,7 +44,7 @@ int main(int argc, char *argv[], char *env[])
         exit(EXIT_FAILURE);
     }
 
-    if (qwm->requestSurface(myname) != 0) {
+    if (qwm->requestSurface(graphic_role) != 0) {
         cerr << "Error: wm check failed" << endl;
         exit(EXIT_FAILURE);
     }
@@ -90,7 +81,7 @@ int main(int argc, char *argv[], char *env[])
     if (mainapp->StartMonitoringUserInput() < 0)
         return -1;
 
-	qwm->activateSurface(myname);
+	qwm->activateWindow(graphic_role);
 
     /* main loop: */
     return a.exec();
