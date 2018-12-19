@@ -92,7 +92,7 @@ MainApp::MainApp():QMainWindow(Q_NULLPTR, Qt::FramelessWindowHint),
             TRACE_ERROR("QFontDatabase::addApplicationFontFromData failed");
         }
     }
-    
+
     /* Check if "AGL_NAVI" env variable is set. If yes, we must notify
      * AGL environment when surface needs to be resized */
     if (getenv("AGL_NAVI"))
@@ -118,7 +118,7 @@ MainApp::~MainApp()
     lineEdit.disconnect();
     networkManager.disconnect();
     keyboard.disconnect();
-        
+
     delete pSearchReply;
     delete pInfoPanel;
     mutex.unlock();
@@ -159,7 +159,7 @@ void MainApp::DisplayLineEdit(bool display)
         lineEdit.setVisible(false);
     }
     isInputDisplayed = display;
-    
+
     mutex.unlock();
 }
 
@@ -201,7 +201,7 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
             //pResultList->setFont(font);
             pResultList->installEventFilter(this);
         }
-        
+
         pResultList->setGeometry(QRect(   LEFT_OFFSET+searchBtn.width()+SPACER, searchBtn.height()+SPACER,
                                         DISPLAY_WIDTH, DISPLAY_HEIGHT));
         if (RefreshDisplay)
@@ -221,13 +221,13 @@ void MainApp::DisplayResultList(bool display, bool RefreshDisplay)
         }
 
         lineEdit.setFocus();
-        
+
         if (RefreshDisplay)
         {
             this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
         }
     }
-    
+
     mutex.unlock();
 }
 
@@ -317,7 +317,7 @@ void MainApp::ParseJsonBusinessList(const char* buf, std::vector<Business> & Out
     {
         (void)key;
         json_object *value;
-        
+
         if (json_object_get_type(val) == json_type_array)
         {
             TRACE_DEBUG_JSON("an array was found");
@@ -375,7 +375,7 @@ void MainApp::ParseJsonBusinessList(const char* buf, std::vector<Business> & Out
                         if (json_object_object_get_ex(medi_array_obj, "coordinates", &medi_array_obj_elem))
                         {
                             json_object *value2;
-                            
+
                             TRACE_DEBUG_JSON("coordinates were found");
 
                             if(json_object_object_get_ex(medi_array_obj_elem, "latitude", &value2))
@@ -394,7 +394,7 @@ void MainApp::ParseJsonBusinessList(const char* buf, std::vector<Business> & Out
                         if (json_object_object_get_ex(medi_array_obj, "location", &medi_array_obj_elem))
                         {
                             json_object *value2;
-                            
+
                             TRACE_DEBUG_JSON("a location was found");
 
                             /* TODO: how do we deal with address2 and address3 ? */
@@ -614,7 +614,7 @@ void MainApp::DisplayInformation(bool display, bool RefreshDisplay)
             pInfoPanel = NULL;
         }
         lineEdit.setFocus();
-        
+
         if (RefreshDisplay)
         {
             this->setGeometry(QRect(this->pos().x(), this->pos().y(), COMPLETE_W_WITH_KB, COMPLETE_H_WITH_KB));
@@ -628,7 +628,7 @@ void MainApp::networkReplySearch(QNetworkReply* reply)
 {
     char buf[BIG_BUFFER_SIZE];
     int buflen;
-    
+
     mutex.lock();
 
     /* memorize the text which gave this result: */
@@ -643,18 +643,18 @@ void MainApp::networkReplySearch(QNetworkReply* reply)
 	        mutex.unlock();
 	        return;
 	    }
-	    
+
     	buflen = reply->read(buf, BIG_BUFFER_SIZE-1);
 	    buf[buflen] = '\0';
-	
+
 	    if (buflen == 0)
 	    {
 	        mutex.unlock();
 	        return;
 	    }
-	
-	
-	
+
+
+
 	    currentIndex = 0;
 	    Businesses.clear();
 	    ParseJsonBusinessList(buf, Businesses);
@@ -665,7 +665,7 @@ void MainApp::networkReplySearch(QNetworkReply* reply)
     {
     	fprintf(stderr,"POI: reply error network please check to poikey and system time (adjusted?)\n");
     }
-    
+
     mutex.unlock();
 }
 
@@ -789,7 +789,7 @@ int MainApp::AuthenticatePOI(const QString & CredentialsFile)
     if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
         buf[strlen(buf)-1] = '\0';
     AppId = QString(buf);
-    
+
     if (!fgets(buf, 512, filep))
     {
         fprintf(stderr,"Failed to read AppSecret from credentials file \"%s\"", qPrintable(CredentialsFile));

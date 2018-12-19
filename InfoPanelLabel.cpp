@@ -20,6 +20,6 @@ void InfoPanelLabel::Init(int pos, int height, const QString &text, QFont *font)
         setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     else
         setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-        
+
     setVisible(true);
 }
