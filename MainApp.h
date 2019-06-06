@@ -26,6 +26,7 @@ class MainApp: public QMainWindow, public naviapi::NavicoreListener
         int StartMonitoringUserInput();
         void setInfoScreen(bool val) { isInfoScreen = val; }
         void setKeyboard(bool val)   { isKeyboard = val; }
+        void SetDestination(double latitude, double longitude);
 
     private:
         void ParseJsonBusinessList(const char* buf, std::vector<Business> & Output);

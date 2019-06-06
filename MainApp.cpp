@@ -564,6 +564,21 @@ void MainApp::SetDestination(int index)
     mutex.unlock();
 }
 
+void MainApp::SetDestination(double latitude, double longitude)
+{
+    mutex.lock();
+
+    TRACE_DEBUG(" SetDestination is called!!!");
+
+    /* retrieve the coordinates of this item : */
+    this->destinationLatitude = latitude;
+    this->destinationLongitude = longitude;
+
+    naviapi.getAllRoutes();
+
+    mutex.unlock();
+}
+
 void MainApp::DisplayInformation(bool display, bool RefreshDisplay)
 {
     mutex.lock();

@@ -26,6 +26,37 @@ void TapShortcutHandler(json_object *object)
     qwm->activateWindow(graphic_role);
 }
 
+void SetDestinationHandler(json_object *object)
+{
+    double latitude;
+    double longitude;
+
+    struct json_object *json_parameter;
+    struct json_object *json_latitude;
+    struct json_object *json_longitude;
+    cerr << "SetDestinationHandler: get latitudeInDegrees object:" <<json_object_get_string(object)<< endl;
+    if(!json_object_object_get_ex(object, "parameter", &json_parameter)) {
+        cerr << "Error: get parameter failed" << endl;
+        return;
+    }
+
+    if(!json_object_object_get_ex(json_parameter, "latitudeInDegrees", &json_latitude)) {
+        cerr << "Error: get latitudeInDegrees failed" << endl;
+        return;
+    }
+    latitude = json_object_get_double(json_latitude);
+
+    if(!json_object_object_get_ex(json_parameter, "longitudeInDegrees", &json_longitude)) {
+        cerr << "Error: get longitudeInDegrees failed" << endl;
+        return;
+    }
+    longitude = json_object_get_double(json_longitude);
+
+    cerr << "SetDestinationHandler: latitude:" <<latitude<< ",longitude:" <<longitude<< endl;
+
+    mainapp->SetDestination(latitude, longitude);
+}
+
 int main(int argc, char *argv[], char *env[])
 {
     int opt;
@@ -53,9 +84,10 @@ int main(int argc, char *argv[], char *env[])
 
     mainapp = new MainApp();
 
-	hs->init(port, token.c_str());
+    hs->init(port, token.c_str());
 
 	hs->set_event_handler(LibHomeScreen::Event_TapShortcut, TapShortcutHandler);
+    hs->set_event_handler(LibHomeScreen::Event_SetDestination, SetDestinationHandler);
 
     //force setting
     mainapp->setInfoScreen(true);
@@ -81,7 +113,8 @@ int main(int argc, char *argv[], char *env[])
     if (mainapp->StartMonitoringUserInput() < 0)
         return -1;
 
-	qwm->activateWindow(graphic_role);
+	//qwm->activateWindow(graphic_role);
+    hs->publishSubscription();
 
     /* main loop: */
     return a.exec();
